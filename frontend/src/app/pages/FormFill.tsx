@@ -10,7 +10,7 @@ import { Progress } from "../components/ui/progress";
 import { formFields as staticFormFields, FormField, getFieldInfoForLanguage } from "../data/formFields";
 import { useLanguage } from "../context/LanguageContext";
 import { useFormData } from "../context/FormDataContext";
-import { apiUrl } from "../../config/apiConfig";
+import { apiUrl, apiHeaders } from "../../config/apiConfig";
 
 /** Smart form state - 18 se 100+ fields auto-support, logic same rahega */
 type FormState = { [key: string]: any };
@@ -193,7 +193,7 @@ export function FormFill() {
       try {
         const res = await fetch(apiUrl("/api/forms"), {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: apiHeaders,
           body: JSON.stringify({
             formName: "Registration Form",
             status: "draft",
@@ -472,7 +472,7 @@ export function FormFill() {
 
         {/* Field Indicators */}
         <div className="mt-8 flex justify-center gap-2 flex-wrap">
-          {formFields.map((field, index) => {
+          {fields.map((field, index) => {
             const isComplete = !!answers[field.id];
             const isCurrent = index === currentIndex;
             const isAuto = autoFilledFields.includes(field.id);

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import * as React from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router";
 import { CheckCircle2, Download, Printer, Home, FileCheck, Eye } from "lucide-react";
 import { motion } from "motion/react";
@@ -6,7 +7,7 @@ import { Navbar } from "../components/Navbar";
 import { Button } from "../components/ui/button";
 import { useLanguage } from "../context/LanguageContext";
 import { generateAndDownloadPDF, previewPDF, downloadPDF } from "../utils/pdfGenerator";
-import { apiUrl } from "../../config/apiConfig";
+import { apiUrl, apiHeaders } from "../../config/apiConfig";
 
 export function Success() {
   const navigate = useNavigate();
@@ -14,62 +15,98 @@ export function Success() {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [autoFilledFields, setAutoFilledFields] = useState<string[]>([]);
   const [isFinalized, setIsFinalized] = useState(false);
+  const hasSaved = useRef(false);
 
   useEffect(() => {
+    if (hasSaved.current) return;
+
     const stored = localStorage.getItem("formData");
     if (stored) {
-      const data = JSON.parse(stored);
-      setAnswers(data.answers || {});
-      setAutoFilledFields(data.autoFilledFields || []);
-      setIsFinalized(data.status === "finalized");
+      try {
+        const data = JSON.parse(stored);
+        setAnswers(data.answers || {});
+        setAutoFilledFields(data.autoFilledFields || []);
+        setIsFinalized(data.status === "finalized");
 
-      if (data.status === "finalized" && data.confirmed) {
-        saveToHistory(data);
+        if (data.status === "finalized" && data.confirmed) {
+          hasSaved.current = true;
+          saveToHistory(data);
+        }
+      } catch (err) {
+        console.error("Error parsing form data:", err);
       }
     }
   }, []);
 
   /** Save to API (MongoDB) + localStorage - try-catch for Server Offline */
   const saveToHistory = async (data: any) => {
+    const draftId = localStorage.getItem("draftFormId");
     const submission = {
-      id: data.submittedAt || new Date().toISOString(),
       formName: "Registration Form",
-      dateFilled: data.submittedAt || new Date().toISOString(),
       status: "finalized",
       language: localStorage.getItem("formLanguage") || "en",
       answers: data.answers || {},
       autoFilledFields: data.autoFilledFields || [],
+      submittedAt: data.submittedAt || new Date().toISOString(),
     };
 
     try {
-      await fetch(apiUrl("/api/forms"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          formName: submission.formName,
-          status: submission.status,
-          language: submission.language,
-          answers: submission.answers,
-          autoFilledFields: submission.autoFilledFields,
-          submittedAt: submission.dateFilled,
-        }),
+      const url = draftId ? apiUrl(`/api/forms/${draftId}`) : apiUrl("/api/forms");
+      const method = draftId ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: apiHeaders,
+        body: JSON.stringify(submission),
       });
+
+      if (res.ok && draftId) {
+        // Clear draft ID once it's finalized and synced
+        localStorage.removeItem("draftFormId");
+      }
     } catch (_) {
-      // Server offline - sirf local history mein save karenge
+      // Server offline - sync handled by local history
     }
 
+    // Update local history
     const historyData = localStorage.getItem("formHistory");
     const history = historyData ? JSON.parse(historyData) : [];
-    const exists = history.some((item: any) => item.id === submission.id);
+
+    // Use a unique enough ID for local tracking
+    const localId = draftId || submission.submittedAt;
+    const exists = history.some((item: any) =>
+      (item._id && item._id === draftId) || (item.id === localId)
+    );
+
     if (!exists) {
-      history.unshift(submission);
+      history.unshift({
+        ...submission,
+        id: localId,
+        _id: draftId,
+        dateFilled: submission.submittedAt
+      });
       localStorage.setItem("formHistory", JSON.stringify(history));
+    } else {
+      // Update existing local record if found
+      const idx = history.findIndex((item: any) =>
+        (item._id && item._id === draftId) || (item.id === localId)
+      );
+      if (idx !== -1) {
+        history[idx] = {
+          ...history[idx],
+          ...submission,
+          status: "finalized",
+          dateFilled: submission.submittedAt
+        };
+        localStorage.setItem("formHistory", JSON.stringify(history));
+      }
     }
   };
 
   const handleFinish = () => {
     // Clear saved form data
     localStorage.removeItem("formData");
+    localStorage.removeItem("draftFormId");
     // Return to home
     navigate("/");
   };
@@ -124,7 +161,7 @@ export function Success() {
                 }}
                 className="absolute inset-0 rounded-full bg-green-500/30 blur-2xl"
               />
-              
+
               <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center shadow-2xl shadow-green-500/50">
                 <CheckCircle2 className="w-16 h-16 text-white" strokeWidth={2.5} />
               </div>

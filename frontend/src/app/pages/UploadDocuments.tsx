@@ -21,7 +21,7 @@ import { Navbar } from "../components/Navbar";
 import { Button } from "../components/ui/button";
 import { useLanguage } from "../context/LanguageContext";
 import { useFormData } from "../context/FormDataContext";
-import { apiUrl } from "../../config/apiConfig";
+import { apiUrl, apiHeaders } from "../../config/apiConfig";
 
 export function UploadDocuments() {
   const navigate = useNavigate();
@@ -79,7 +79,7 @@ export function UploadDocuments() {
       const { data } = await axios.post<{ answers: Record<string, string>; autoFilledFields: string[] }>(
         apiUrl("/api/forms/process"),
         formData,
-        { headers: { "Content-Type": "multipart/form-data" }, timeout: 120000 }
+        { headers: { ...apiHeaders, "Content-Type": "multipart/form-data" }, timeout: 120000 }
       );
       setExtractedData({ answers: data.answers || {}, autoFilledFields: data.autoFilledFields || [] });
       const stored = JSON.parse(localStorage.getItem("formData") || "{}");
@@ -164,8 +164,8 @@ export function UploadDocuments() {
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
             className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all ${isDragging
-                ? "border-purple-500 bg-purple-500/20 scale-105"
-                : "border-white/20 bg-white/5 hover:border-purple-500/50 hover:bg-purple-500/5"
+              ? "border-purple-500 bg-purple-500/20 scale-105"
+              : "border-white/20 bg-white/5 hover:border-purple-500/50 hover:bg-purple-500/5"
               }`}
           >
             <input
@@ -256,9 +256,9 @@ export function UploadDocuments() {
           className="mt-8 bg-blue-500/10 border border-blue-500/20 rounded-2xl p-6"
         >
           <p className="text-gray-300 text-sm leading-relaxed text-center">
-            🔒 <strong className="text-white">Privacy:</strong> Your documents are processed
-            <strong className="text-white"> only</strong> to extract information using OCR.
-            Nothing is stored on our servers.
+            🔒 <strong className="text-white">Privacy:</strong> Your documents are processed in-memory
+            to extract information and are <strong className="text-white">not stored</strong> on our servers.
+            Only your final form submissions are saved to your history.
           </p>
         </motion.div>
 

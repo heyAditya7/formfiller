@@ -26,7 +26,7 @@ import { Navbar } from "../components/Navbar";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { generateAndDownloadPDF, previewPDF } from "../utils/pdfGenerator";
-import { apiUrl } from "../../config/apiConfig";
+import { apiUrl, apiHeaders } from "../../config/apiConfig";
 
 /** Submission type - API (MongoDB) ya localStorage dono ke liye */
 interface FormSubmission {
@@ -60,7 +60,7 @@ export function FormHistory() {
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
       const url = apiUrl("/api/forms") + (params.toString() ? "?" + params.toString() : "");
-      const res = await fetch(url);
+      const res = await fetch(url, { headers: apiHeaders });
       if (!res.ok) throw new Error("Request failed");
       const data = await res.json();
       const list: FormSubmission[] = (data || []).map((d: any) => ({
@@ -77,10 +77,14 @@ export function FormHistory() {
       const seen = new Set<string>();
       const unique: FormSubmission[] = [];
       for (const item of list) {
-        const key = item._id || item.id;
+        // Ensure key is a string (especially for ObjectIds)
+        const key = String(item._id || item.id || "");
         if (key && !seen.has(key)) {
           seen.add(key);
-          unique.push(item);
+          unique.push({
+            ...item,
+            id: key // Normalize ID to string
+          });
         }
       }
       setSubmissions(unique);
@@ -147,7 +151,10 @@ export function FormHistory() {
     if (!confirm("Are you sure you want to delete this form submission?")) return;
     const mongoId = submissions.find((s) => s.id === id || s._id === id)?._id || id;
     try {
-      const res = await fetch(apiUrl(`/api/forms/${mongoId}`), { method: "DELETE" });
+      const res = await fetch(apiUrl(`/api/forms/${mongoId}`), {
+        method: "DELETE",
+        headers: apiHeaders
+      });
       if (res.ok) {
         setSubmissions((prev) => prev.filter((s) => s.id !== id && s._id !== mongoId));
       } else {
@@ -316,8 +323,8 @@ export function FormHistory() {
                           </span>
                           <span
                             className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${submission.status === "finalized"
-                                ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                                : "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+                              ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                              : "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
                               }`}
                           >
                             {submission.status === "finalized" ? (

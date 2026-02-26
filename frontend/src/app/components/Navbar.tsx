@@ -27,6 +27,7 @@ export function Navbar() {
   const handleStartNew = () => {
     // Clear any existing form data
     localStorage.removeItem("formData");
+    localStorage.removeItem("draftFormId");
     // FIX: All start buttons lead to document upload first (consistent workflow)
     navigate("/upload-documents");
   };
@@ -88,9 +89,8 @@ export function Navbar() {
                     navigate(item.path);
                   }
                 }}
-                className={`text-gray-300 hover:text-white hover:bg-white/10 ${
-                  isActive ? "bg-white/10 text-white" : ""
-                }`}
+                className={`text-gray-300 hover:text-white hover:bg-white/10 ${isActive ? "bg-white/10 text-white" : ""
+                  }`}
                 id={item.path === "/history" ? "btn_history" : undefined}
               >
                 <Icon className="w-4 h-4 mr-2" />

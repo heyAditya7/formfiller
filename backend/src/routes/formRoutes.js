@@ -166,6 +166,32 @@ router.get("/:id", async (req, res) => {
 });
 
 /**
+ * PUT /api/forms/:id - Update form (e.g., finalize draft)
+ */
+router.put("/:id", async (req, res) => {
+  try {
+    const { formName, status, language, answers, autoFilledFields, submittedAt } = req.body;
+    const doc = await Form.findByIdAndUpdate(
+      req.params.id,
+      {
+        ...(formName && { formName }),
+        ...(status && { status }),
+        ...(language && { language }),
+        ...(answers && { answers }),
+        ...(autoFilledFields && { autoFilledFields }),
+        ...(submittedAt && { submittedAt: new Date(submittedAt) }),
+      },
+      { new: true }
+    );
+    if (!doc) return res.status(404).json({ error: "Form not found" });
+    res.json(doc);
+  } catch (err) {
+    console.error("PUT /api/forms/:id error:", err);
+    res.status(500).json({ error: "Failed to update form" });
+  }
+});
+
+/**
  * DELETE /api/forms/:id - Delete form
  */
 router.delete("/:id", async (req, res) => {
